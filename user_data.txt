@@ -1,0 +1,29 @@
+#!/bin/bash
+set -x
+# install docker
+apt update
+apt -y install apt-transport-https ca-certificates curl software-properties-common
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+apt update
+apt-cache policy docker-ce
+apt -y install docker-ce
+docker run hello-world
+# add ubuntu user to docker group
+usermod -aG docker ubuntu
+
+# Enable TCP port 2375 for external connection to Docker
+cat << EOF > /etc/docker/daemon.json
+{"hosts": ["tcp://127.0.0.1:2375", "unix:///var/run/docker.sock"]}
+EOF
+
+mkdir /etc/systemd/system/docker.service.d/
+cat << EOF > /etc/systemd/system/docker.service.d/override.conf
+[Service]
+ExecStart=
+ExecStart=/usr/bin/dockerd
+EOF
+
+systemctl daemon-reload
+systemctl stop docker
+systemctl start docker
